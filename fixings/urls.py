@@ -17,10 +17,10 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 
-from .views import GetCurrenciesListView, GetIndexesListView
+from .views import GetCurrenciesListView, GetIndexesListView, UpdateFixingsInfoView
 
 urlpatterns = [
     path('currencies/', GetCurrenciesListView.as_view()),
     path('indexes/', GetIndexesListView.as_view()),
-    # path('currency_fixings/', include('fixings.urls')),
+    path('update-info', UpdateFixingsInfoView.as_view()),
 ]

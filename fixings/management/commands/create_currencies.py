@@ -24,7 +24,7 @@ class Command(BaseCommand):
             currency, created = Currency.objects.get_or_create(
                 currency=currency_data["currency"],
                 symbol=currency_data["symbol"],
-                polygonTicker=f"C:USD{currency_data['currency']}"
+                ticker=f"{currency_data['currency']}USD=X"
             )
             if created:
                 created_count += 1

@@ -1,5 +1,3 @@
-import datetime
-
 from rest_framework import serializers
 
 from .models import Currency, Fixing, CurrencyUSDFixing, Index
@@ -14,31 +12,10 @@ class GetCurrenciesListSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
     def get_currentUSDPrice(self, instance):
-        if instance.currency == "USD":
-            return 1
-
-        fixing = CurrencyUSDFixing.objects.filter(
-            currencyId=instance,
-        ).order_by("-currencyFixingDate").first()
-        if fixing:
-            return round(fixing.valueUSD, 2)
-        return None
+        return instance.get_price(request_currency="USD")
 
     def get_monthlyDynamic(self, instance):
-        if instance.currency == "USD":
-            return 0
-
-        fixings = CurrencyUSDFixing.objects.filter(
-            currencyId=instance,
-        ).order_by("-currencyFixingDate")
-
-        yesterday_fixing = fixings[0]
-        last_month_fixing = fixings[30]
-
-        if yesterday_fixing and last_month_fixing:
-            return round(
-                (yesterday_fixing.valueUSD / last_month_fixing.valueUSD - 1) * 100, 2
-            )
+        return (instance.get_dynamic(currency="USD") - 1) * 100
 
 
 class CurrencySerializer(serializers.ModelSerializer):
@@ -49,6 +26,7 @@ class CurrencySerializer(serializers.ModelSerializer):
 
 class GetIndexesSerializer(serializers.ModelSerializer):
     currentPrice = serializers.SerializerMethodField()
+    currentConvertedPrice = serializers.SerializerMethodField()
     monthlyDynamic = serializers.SerializerMethodField()
     currency = CurrencySerializer(source="ccyId")
 
@@ -59,23 +37,10 @@ class GetIndexesSerializer(serializers.ModelSerializer):
         # depth = 1
 
     def get_currentPrice(self, instance):
-        last_fixing = Fixing.objects.filter(indexId=instance).order_by("-fixingDate").first()
+        return instance.get_price()
 
-        if last_fixing:
-            return f"{round(last_fixing.value, 2)}"
+    def get_currentConvertedPrice(self, instance):
+        return instance.get_price(request_currency=self.context.get("currency"))
 
     def get_monthlyDynamic(self, instance):
-        fixings = Fixing.objects.filter(
-            indexId=instance,
-        ).order_by("-fixingDate")
-
-        try:
-            yesterday_fixing = fixings[0]
-            last_month_fixing = fixings[30]
-
-            if yesterday_fixing and last_month_fixing:
-                return round(
-                    (yesterday_fixing.value / last_month_fixing.value - 1) * 100, 2
-                )
-        except Exception:
-            return None
+        return instance.get_dynamic()

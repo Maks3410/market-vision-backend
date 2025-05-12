@@ -1,12 +1,10 @@
 import datetime
-import yfinance as yf
-import pandas as pd
-import json
-import os
-from django.core.management.base import BaseCommand
-from fixings.models import Currency, Index, Fixing, CurrencyUSDFixing
 from datetime import datetime, timedelta
-from polygon import RESTClient
+
+import yfinance as yf
+from django.core.management.base import BaseCommand
+
+from fixings.models import Currency, Index, Fixing, CurrencyUSDFixing
 
 
 def daterange(start_date, end_date):
@@ -18,10 +16,8 @@ class Command(BaseCommand):
     help = "Загружает фиксинги валют и акций с 2020-01-01 до вчера."
 
     def handle(self, *args, **kwargs):
-        polygon_client = RESTClient(api_key='HDarpSe1VjbNVodWFDgf1kop6Kw60KoN')
-
         start = datetime(2020, 1, 1).strftime("%Y-%m-%d")
-        yesterday = (datetime.today() - timedelta(days=1)).strftime("%Y-%m-%d")
+        yesterday = (datetime.today() - timedelta(days=10)).strftime("%Y-%m-%d")
 
         currencies = list(Currency.objects.all().values_list('ticker', flat=True))
         index_list = list(Index.objects.all().values_list('indexISIN', flat=True))
