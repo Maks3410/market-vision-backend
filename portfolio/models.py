@@ -2,6 +2,7 @@ import datetime
 
 from _decimal import Decimal
 from django.db import models
+from django.utils import timezone
 
 from authentication.models import User
 from fixings.models import Index
@@ -48,6 +49,23 @@ class Portfolio(models.Model):
 
         return ((current - initial) / initial) * 100
 
+    def get_predicted_value(self, currency=None, days=30):
+        """
+        Рассчитывает предполагаемую стоимость портфеля через указанное количество дней
+        на основе прогнозов стоимости каждого пакета акций.
+
+        Args:
+            currency: Валюта для расчета стоимости
+            days: Количество дней для прогноза
+
+        Returns:
+            Decimal: Предполагаемая стоимость портфеля
+        """
+        return sum(
+            packet.get_predicted_value(currency=currency, days=days)
+            for packet in self.packets.select_related('indexId__ccyId').all()
+        )
+
 
 class IndexPacket(models.Model):
     portfolioId = models.ForeignKey(Portfolio, related_name="packets", on_delete=models.CASCADE)
@@ -84,3 +102,25 @@ class IndexPacket(models.Model):
             return Decimal('0.0')
 
         return ((current - initial) / initial) * 100
+
+    def get_predicted_value(self, currency=None, days=30):
+        """
+        Рассчитывает предполагаемую стоимость пакета акций через указанное количество дней
+        на основе текущей динамики цены.
+
+        Args:
+            currency: Валюта для расчета стоимости
+            days: Количество дней для прогноза
+
+        Returns:
+            Decimal: Предполагаемая стоимость пакета акций
+        """
+        if currency is None:
+            currency = self.indexId.ccyId.currency
+
+        current_value = self.get_value(currency=currency)
+        dynamic = self.get_dynamic(days=days, currency=currency)
+        
+        # Рассчитываем предполагаемую стоимость на основе текущей динамики
+        predicted_change = current_value * (dynamic / 100)
+        return current_value + predicted_change

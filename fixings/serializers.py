@@ -1,21 +1,32 @@
 from rest_framework import serializers
+from decimal import Decimal, ROUND_HALF_UP
 
 from .models import Currency, Fixing, CurrencyUSDFixing, Index
 
 
+def round_decimal(value):
+    """Rounds decimal to 4 places and removes trailing zeros"""
+    if value is None:
+        return Decimal('0')
+    rounded = Decimal(str(value)).quantize(Decimal('0.0001'), rounding=ROUND_HALF_UP)
+    return rounded.normalize()
+
+
 class GetCurrenciesListSerializer(serializers.ModelSerializer):
-    currentUSDPrice = serializers.SerializerMethodField()
+    currentConvertedPrice = serializers.SerializerMethodField()
     monthlyDynamic = serializers.SerializerMethodField()
 
     class Meta:
         model = Currency
         fields = "__all__"
 
-    def get_currentUSDPrice(self, instance):
-        return instance.get_price(request_currency="USD")
+    def get_currentConvertedPrice(self, instance):
+        currency = self.context.get("currency", "USD")
+        return round_decimal(instance.get_price(request_currency=currency))
 
     def get_monthlyDynamic(self, instance):
-        return (instance.get_dynamic(currency="USD") - 1) * 100
+        currency = self.context.get("currency", "USD")
+        return round_decimal((instance.get_dynamic(currency=currency) - 1) * 100)
 
 
 class CurrencySerializer(serializers.ModelSerializer):
@@ -37,10 +48,10 @@ class GetIndexesSerializer(serializers.ModelSerializer):
         # depth = 1
 
     def get_currentPrice(self, instance):
-        return instance.get_price()
+        return round_decimal(instance.get_price())
 
     def get_currentConvertedPrice(self, instance):
-        return instance.get_price(request_currency=self.context.get("currency"))
+        return round_decimal(instance.get_price(request_currency=self.context.get("currency", "USD")))
 
     def get_monthlyDynamic(self, instance):
-        return instance.get_dynamic()
+        return round_decimal(instance.get_dynamic())

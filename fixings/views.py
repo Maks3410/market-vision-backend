@@ -6,7 +6,7 @@ from rest_framework import generics, status, filters
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 
-from .serializers import GetCurrenciesListSerializer, GetIndexesSerializer
+from .serializers import GetCurrenciesListSerializer, GetIndexesSerializer, CurrencySerializer
 from .models import Currency, Fixing, Index, CurrencyUSDFixing
 import yfinance as yf
 
@@ -25,7 +25,7 @@ class GetCurrenciesListView(generics.ListAPIView):
     serializer_class = GetCurrenciesListSerializer
     queryset = Currency.objects.all()
     filter_backends = [filters.OrderingFilter]
-    ordering_fields = ['currency', 'ticker', 'currentUSDPrice', 'monthlyDynamic']
+    ordering_fields = ['currency', 'ticker', 'currentConvertedPrice', 'monthlyDynamic']
     ordering = ['ticker']
 
     def filter_queryset(self, queryset):
@@ -38,7 +38,7 @@ class GetCurrenciesListView(generics.ListAPIView):
                 reverse = True
                 ordering = ordering[1:]
 
-            if ordering in ["currentUSDPrice", "monthlyDynamic"]:
+            if ordering in ["currentConvertedPrice", "monthlyDynamic"]:
                 queryset = list(queryset)
 
                 def sort_key(obj):
@@ -51,36 +51,54 @@ class GetCurrenciesListView(generics.ListAPIView):
         return super().filter_queryset(queryset)
 
     def list(self, request, *args, **kwargs):
+        currency = request.query_params.get("currency", "USD")
         queryset = self.filter_queryset(self.get_queryset())
 
         paginator = LastUpdatePaginator()
         page = paginator.paginate_queryset(queryset, request)
+        
         if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return paginator.get_paginated_response(serializer.data)
+            serializer = self.get_serializer(page, many=True, context={"currency": currency})
+            response = paginator.get_paginated_response(serializer.data)
+            currency_instance = Currency.objects.get(currency=currency)
+            response.data["currency"] = CurrencySerializer(currency_instance).data
+            return response
 
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data)
+        serializer = self.get_serializer(queryset, many=True, context={"currency": currency})
+        response_data = {
+            "results": serializer.data,
+            "currency": CurrencySerializer(Currency.objects.get(currency=currency)).data
+        }
+        return Response(response_data)
 
 
 class GetIndexesListView(generics.ListAPIView):
     queryset = Index.objects.all()
     serializer_class = GetIndexesSerializer
     filter_backends = [filters.OrderingFilter]
-    ordering_fields = ['indexName', 'indexISIN', 'currentPrice', 'currentUSDPrice', 'monthlyDynamic']
+    ordering_fields = ['indexName', 'indexISIN', 'currentPrice', 'currentConvertedPrice', 'monthlyDynamic']
     ordering = ['indexISIN']
 
     def list(self, request, *args, **kwargs):
+        currency = request.query_params.get("currency", "USD")
         queryset = self.filter_queryset(self.get_queryset())
 
         paginator = LastUpdatePaginator()
         page = paginator.paginate_queryset(queryset, request)
+        
         if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return paginator.get_paginated_response(serializer.data)
+            serializer = self.get_serializer(page, many=True, context={"currency": currency})
+            response = paginator.get_paginated_response(serializer.data)
+            currency_instance = Currency.objects.get(currency=currency)
+            response.data["currency"] = CurrencySerializer(currency_instance).data
+            return response
 
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data)
+        serializer = self.get_serializer(queryset, many=True, context={"currency": currency})
+        response_data = {
+            "results": serializer.data,
+            "currency": CurrencySerializer(Currency.objects.get(currency=currency)).data
+        }
+        return Response(response_data)
 
     def filter_queryset(self, queryset):
         request = self.request
@@ -178,3 +196,17 @@ class UpdateFixingsInfoView(generics.RetrieveAPIView):
             "startDate": start,
             "endDate": yesterday
         }, status=200)
+
+
+class GetAllCurrenciesListView(generics.RetrieveAPIView):
+    def get(self, request, *args, **kwargs):
+        currencies_names = [GetCurrenciesListSerializer(currency).data["currency"] for currency in
+                            Currency.objects.all()]
+        return Response(currencies_names)
+
+
+class GetAllIndexesListView(generics.RetrieveAPIView):
+    def get(self, request, *args, **kwargs):
+        indexes = [GetIndexesSerializer(index).data for index in
+                   Index.objects.all()]
+        return Response(indexes)

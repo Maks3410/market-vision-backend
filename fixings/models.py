@@ -17,14 +17,29 @@ class Currency(models.Model):
 
     def get_price(self, request_currency=None, date=None):
         """Возвращает цену данной валюты в указанной валюте на дату"""
-        if self.currency == "USD":
-            return Decimal('1')
-
         if request_currency is None:
             request_currency = "USD"
         if date is None:
             date = datetime.date.today()
 
+        # If converting to the same currency, return 1
+        if self.currency == request_currency:
+            return Decimal('1')
+
+        # If converting from USD to another currency
+        if self.currency == "USD":
+            target_currency = Currency.objects.get(currency=request_currency)
+            target_fixing = CurrencyUSDFixing.objects.filter(
+                currencyId=target_currency,
+                currencyFixingDate__lte=date
+            ).order_by("-currencyFixingDate").first()
+            
+            if not target_fixing or not target_fixing.valueUSD:
+                return Decimal('0.0')
+            
+            return Decimal('1') / target_fixing.valueUSD
+
+        # If converting to USD or any other currency
         fixing = CurrencyUSDFixing.objects.filter(
             currencyId=self,
             currencyFixingDate__lte=date

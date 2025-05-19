@@ -2,6 +2,7 @@
 
 from rest_framework import serializers
 
+from fixings.models import Currency
 from fixings.serializers import GetIndexesSerializer, CurrencySerializer
 from .models import Portfolio, IndexPacket
 
@@ -71,10 +72,12 @@ class PortfolioCardSerializer(serializers.ModelSerializer):
     packets = IndexPacketDetailSerializer(many=True, source="packets.all")
     dynamicFromBuyDate = serializers.SerializerMethodField()
     convertedDynamicFromBuyDate = serializers.SerializerMethodField()
+    currency = serializers.SerializerMethodField()
 
     class Meta:
         model = Portfolio
-        fields = ["id", "name", "currentValue", "dynamicFromBuyDate", "convertedDynamicFromBuyDate", "packets"]
+        fields = ["id", "name", "currentValue", "dynamicFromBuyDate", "convertedDynamicFromBuyDate", "packets",
+                  "currency"]
 
     def get_currentValue(self, obj):
         currency = self.context.get("currency", "USD")
@@ -86,3 +89,6 @@ class PortfolioCardSerializer(serializers.ModelSerializer):
     def get_convertedDynamicFromBuyDate(self, obj):
         currency = self.context.get("currency", "USD")
         return obj.get_dynamic_from_buy_date(currency=currency)
+
+    def get_currency(self, obj):
+        return CurrencySerializer(Currency.objects.get(currency=self.context.get("currency", "USD"))).data

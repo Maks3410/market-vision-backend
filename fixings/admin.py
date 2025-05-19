@@ -11,17 +11,17 @@ class CurrencyAdmin(admin.ModelAdmin):
 
 @admin.register(Index)
 class IndexAdmin(admin.ModelAdmin):
-    list_display = ["indexName", "ccyId__currency", "indexISIN"]
+    list_display = ["indexName", "ccyId", "indexISIN"]
     search_fields = ["indexName", "indexISIN"]
 
 
 @admin.register(Fixing)
 class FixingAdmin(admin.ModelAdmin):
-    list_display = ["indexId__indexName", "fixingDate", "value", "currencyId__symbol"]
+    list_display = ["indexId", "fixingDate", "value", "currencyId"]
     search_fields = ["indexId__indexName"]
 
 
 @admin.register(CurrencyUSDFixing)
 class CurrencyUSDFixingAdmin(admin.ModelAdmin):
-    list_display = ["currencyId__currency", "currencyFixingDate", "valueUSD"]
+    list_display = ["currencyId", "currencyFixingDate", "valueUSD"]
     search_fields = ["currencyId__currency"]
